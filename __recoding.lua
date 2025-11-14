@@ -343,19 +343,18 @@ end
 
 function __refs.__funcs.__parry()
     local __location = __mouse:GetMouseLocation()
-    local __vector2 = {__location.X, __location.Y}
     local __curve = __refs.__funcs.__get_curve()
 
     local __points = {}
 
-    for _, __entity in workspace.Alive:GetChildren() do
-        if __entity.PrimaryPart then
+    for _, __alive in workspace.Alive:GetChildren() do
+        if __alive.PrimaryPart then
             local __sucess, __point = pcall(function()
-                return __camera:WorldToScreenPoint(__entity.PrimaryPart.Position)
+                return __camera:WorldToScreenPoint(__alive.PrimaryPart.Position)
             end)
 
             if __sucess then
-                __points[__entity.Name] = __point
+                __points[__alive.Name] = __point
             end
         end
     end
@@ -365,7 +364,7 @@ function __refs.__funcs.__parry()
         return __pf()
     end
 
-    local __target = __is_mobile and {__camera.ViewportSize.X / 2, __camera.ViewportSize.Y / 2} or __vector2
+    local __target = __is_mobile and {__camera.ViewportSize.X / 2, __camera.ViewportSize.Y / 2} or {__location.X, __location.Y}
 
     for __remote, __args in __remotes do
         local __modified = {
@@ -492,9 +491,9 @@ function __refs.__detection.__is_curved()
 end
 
 -- // library
-local __fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
+local __library = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 
-local __window = __fluent:CreateWindow({
+local __window = __library:CreateWindow({
     Title = 'UwU Testes Gozadores',
     SubTitle = "by Beto",
     Search = true,
@@ -508,14 +507,14 @@ local __window = __fluent:CreateWindow({
 })
 
 __library:CreateMinimizer({
-  Icon = 'sword',
-  Size = UDim2.fromOffset(44, 44),
-  Position = UDim2.fromOffset(15, 0),
-  Acrylic = true,
-  Corner = 10,
-  Transparency = 1,
-  Draggable = true,
-  Visible = true
+    Icon = 'sword',
+    Size = UDim2.fromOffset(44, 44),
+    Position = UDim2.fromOffset(15, 0),
+    Acrylic = true,
+    Corner = 10,
+    Transparency = 1,
+    Draggable = true,
+    Visible = true
 })
 
 do
@@ -524,7 +523,7 @@ do
     local __drop = __main:AddDropdown("Dropdown", {
         Title = "curves",
         Values = {'Camera', 'Random', 'Accelerated', 'Backwards', 'Slow', 'High'},
-        Description = 'escolhe a porra'
+        Description = 'escolhe a porra',
         Multi = false,
         Search = false,
         Default = 1,
@@ -576,7 +575,7 @@ do
     })
 end
 
-RunService.PreSimulation:Connect(function()
+__runservice.PreSimulation:Connect(function()
     if not __refs.__cache.__autoparry.__enabled or not __localplayer.Character or not __localplayer.Character.PrimaryPart then
         return
     end
@@ -597,53 +596,57 @@ RunService.PreSimulation:Connect(function()
             return
         end
 
-        if not ball then
+        if not __obj then
             continue
         end
 
-        local zoomies = ball:FindFirstChild('zoomies')
-            if not zoomies then continue end
-            
-            ball:GetAttributeChangedSignal('target'):Once(function()
-                System.__properties.__parried = false
-            end)
-            
-            if System.__properties.__parried then continue end
-            
-            local ball_target = ball:GetAttribute('target')
-            local velocity = zoomies.VectorVelocity
-            local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
-            
-            local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
-            local ping_threshold = math.clamp(ping / 10, 5, 17)
-            local speed = velocity.Magnitude
-            
-            local capped_speed_diff = math.min(math.max(speed - 9.5, 0), 650)
-            local speed_divisor = (2.4 + capped_speed_diff * 0.002) * System.__properties.__divisor_multiplier
-            local parry_accuracy = ping_threshold + math.max(speed / speed_divisor, 9.5)
-            
-            local curved = System.detection.is_curved()
-            
-            if ball:FindFirstChild('AeroDynamicSlashVFX') then
-                ball.AeroDynamicSlashVFX:Destroy()
-                System.__properties.__tornado_time = tick()
-            end
-            
-            if Runtime:FindFirstChild('Tornado') then
-                if (tick() - System.__properties.__tornado_time) < 
-                   (Runtime.Tornado:GetAttribute('TornadoTime') or 1) + 0.314159 then
-                    continue
-                end
-            end
-            
-            if one_ball and one_ball:GetAttribute('target') == LocalPlayer.Name and curved then
+        local __zoomies = __obj:FindFirstChild('zoomies')
+
+        if not __zoomies then
+            continue
+        end
+
+        __obj:GetAttributeChangedSignal('target'):Once(function()
+            __refs.__cache.__parried = false
+        end)
+
+        if __refs.__cache.__parried then
+            continue
+        end
+
+        local __target = __obj:GetAttribute('target')
+        local __velocity = __zoomies.VectorVelocity
+        local __distance = (__localplayer.Character.PrimaryPart.Position - __obj.Position).Magnitude
+
+        local __ping = __stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
+        local __threshold = math.clamp(__ping / 10, 5, 17)
+        local __speed = __velocity.Magnitude
+
+        local __speed_diff = math.min(math.max(__speed - 9.5, 0), 650)
+        local __speed_divisor = (2.4 + __speed_diff * 0.002) * __refs.__cache.__accuracy
+        local __accuracy = __threshold + math.max(__speed / __speed_divisor, 9.5)
+
+        local __is_curved = __refs.__funcs.__is_curved()
+
+        if __obj:FindFirstChild('AeroDynamicSlashVFX') then
+            __obj.AeroDynamicSlashVFX:Destroy()
+            __refs.__detection.__ball_props.__tornado_time = tick()
+        end
+
+        if workspace.Runtime:FindFirstChild('Tornado') then
+            if (tick() - __refs.__detection.__ball_props.__tornado_time) < (workspace.Runtime.Tornado:GetAttribute('TornadoTime') or 1) + 0.314159 then
                 continue
             end
-            
-            if ball:FindFirstChild('ComboCounter') then continue end
-            
-            if LocalPlayer.Character.PrimaryPart:FindFirstChild('SingularityCape') then continue end
-            
+        end
+
+        if __ball and __ball:GetAttribute('target') == __localplayer.Name and __is_curved then
+            continue
+        end
+
+        if __obj:FindFirstChild('ComboCounter') or __localplayer.Character.PrimaryPart:FindFirstChild('SingularityCape') then
+            continue
+        end
+
             if System.__config.__detections.__infinity and System.__properties.__infinity_active then continue end
             if System.__config.__detections.__deathslash and System.__properties.__deathslash_active then continue end
             if System.__config.__detections.__timehole and System.__properties.__timehole_active then continue end
