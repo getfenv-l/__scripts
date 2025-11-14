@@ -63,9 +63,12 @@ local __refs = {
             __fx = ''
         },
 
-        __infinity = false,
+        __dupe_ball = false,
+
         __deathslash = false,
+        __infinity = false,
         __timehole = false,
+        __phantom = false,
 
         __slashesoffury = false,
         __slashesoffury_count = 0,
@@ -76,6 +79,21 @@ local __refs = {
         __grab_anim = nil,
         __first_parry = false,
         __training_parried = false,
+    },
+    __detection = {
+        __slashesoffury = false,
+        __deathslash = false,
+        __infinity = false,
+        __timehole = false,
+        __phantom = false,
+
+        __ball_props = {
+            __aerodynamic_time = tick(),
+            __tornado_time = tick(),
+            __last_warping = tick(),
+            __lerp_radians = 0,
+            __curving = tick()
+        }
     },
     __funcs = {},
     __flags = {},
@@ -240,7 +258,7 @@ function __refs.__funcs.__closest()
             local __dist = __localplayer:DistanceFromCharacter(__plr.PrimaryPart.Position)
 
             if __dist < __max then
-                __max = dist
+                __max = __dist
                 __closest = __plr
             end
         end
@@ -268,7 +286,7 @@ function __refs.__funcs.__closest_to_cursor()
 
             if __dot > __min_dot then
                 __min_dot = __dot
-                __closest = player
+                __closest = __plr
             end
         end
     end
@@ -284,10 +302,10 @@ function __refs.__funcs.__get_curve()
         return __camera.CFrame
     end
 
-    local __closest, __plrPart = __refs.__funcs.__closest_to_cursor(), nil
+    local __closest, __plrPart = __refs.__funcs.__closest_to_cursor()
 
     if __closest and __closest.PrimaryPart then
-        __plrPart = closest.PrimaryPart
+        __plrPart = __closest.PrimaryPart
     end
 
     local __pos = __plrPart and __plrPart.Position or (__root.Position + __camera.CFrame.LookVector * 100)
@@ -319,7 +337,7 @@ function __refs.__funcs.__get_curve()
         return CFrame.new(__root.Position, __pos + Vector3.new(0, -9e18, 0))
     end
 
-    return CFrame.new(root.Position, target_pos + Vector3.new(0, 9e18, 0))
+    return CFrame.new(__root.Position, __pos + Vector3.new(0, 9e18, 0))
 end
 
 
@@ -401,16 +419,7 @@ function __refs.__funcs.__keypress()
 end
 
 
-__refs.__detection = {
-    __ball_props = {
-        __aerodynamic_time = tick(),
-        __last_warping = tick(),
-        __lerp_radians = 0,
-        __curving = tick()
-    }
-}
-
-local function __refs.__detection.__predict(a, b, __time)
+function __refs.__detection.__predict(a, b, __time)
     return a + (b - a) * __time
 end
 
@@ -424,7 +433,7 @@ function __refs.__detection.__is_curved()
 
     local __zoomies = __ball:FindFirstChild('zoomies')
 
-    if not zoomies then
+    if not __zoomies then
         return false
     end
 
@@ -434,12 +443,12 @@ function __refs.__detection.__is_curved()
     local __direction = (__localplayer.Character.PrimaryPart.Position - __ball.Position).Unit
     local __dot = __direction:Dot(__ball_direction)
 
-    local __speed = velocity.Magnitude
+    local __speed = __velocity.Magnitude
     local __speed_threshold = math.min(__speed / 100, 40)
 
     local __direction_difference = (__ball_direction - __velocity).Unit
     local __direction_similarity = __direction:Dot(__direction_difference)
-    
+
     local __dot_difference = __dot - __direction_similarity
     local __distance = (__localplayer.Character.PrimaryPart.Position - __ball.Position).Magnitude
 
@@ -453,7 +462,7 @@ function __refs.__detection.__is_curved()
     local __clamped_dot = math.clamp(__dot, -1, 1)
     local __radians = math.rad(math.asin(__clamped_dot))
 
-    __ball_props.__lerp_radians = __linear_predict(__ball_props.__lerp_radians, __radians, 0.8)
+    __ball_props.__lerp_radians = __refs.__detection.__linear_predict(__ball_props.__lerp_radians, __radians, 0.8)
 
     if __speed > 0 and __reach_time > __ping / 10 then
         __ball_distance_threshold = math.max(__ball_distance_threshold - 15, 15)
@@ -475,95 +484,14 @@ function __refs.__detection.__is_curved()
         return true
     end
 
-    if (tick() - ball_props.__curving) < (__reach_time / 1.5) then
+    if (tick() - __ball_props.__curving) < (__reach_time / 1.5) then
         return true
     end
 
     return __dot < __dot_threshold
 end
 
-
-__flags['ap'] = __runservice.PreSimulation:Connect(function()
-    if not __refs.__props.__auto_spam_enabled or not LocalPlayer.Character or not __localplayer.Character.PrimaryPart then
-        return
-    end
-
-    local __balls = __refs.__funcs.__get_balls()
-    local __ball = __refs.__funcs.__get_ball()
-
-    for _, __obj in __balls do
-        if not __obj then
-            continue
-        end
-
-        local __zoomies = __obj:FindFirstChild('zoomies')
-
-        if not __zoomies then
-            continue
-        end
-
-        __obj:GetAttributeChangedSignal('target'):Once(function()
-            __refs.__props.__parried = false
-        end)
-
-        if __refs.__props.__parried then
-            continue
-        end
-
-        local __target = __obj:GetAttribute('target')
-        local __velocity = __zoomies.VectorVelocity
-        local __distance = (__localplayer.Character.PrimaryPart.Position - __obj.Position).Magnitude
-
-        local __ping = __stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
-        local __ping_threshold = math.clamp(__ping / 10, 5, 17)
-        local __speed = velocity.Magnitude
-
-        local __speed_diff = math.min(math.max(__speed - 9.5, 0), 650)
-        local __speed_divisor = (2.4 + __speed_diff * 0.002) * __refs.__props.__accuracy
-        local __parry_accuracy = __ping_threshold + math.max(__speed / __speed_divisor, 9.5)
-
-        local __is_curved = __refs.__detection.__is_curved()
-
-        if __obj:FindFirstChild('AeroDynamicSlashVFX') then
-            __obj.AeroDynamicSlashVFX:Destroy()
-            __refs.__props.__tornado_time = tick()
-        end
-
-        if __obj:FindFirstChild('Tornado') then
-            if (tick() - __refs.__props.__tornado_time) < (__obj.Tornado:GetAttribute('TornadoTime') or 1) + 0.314159 then
-                    continue
-                end
-            end
-
-            if __ball and __ball:GetAttribute('target') == __localplayer.Name and __is_curved then
-                continue
-            end
-
-            if __obj:FindFirstChild('ComboCounter') then
-                continue
-            end
-
-            if __localplayer.Character.PrimaryPart:FindFirstChild('SingularityCape') then
-                continue
-            end
-
-            if __target == __localplayer.Name and __distance <= __parry_accuracy then
-                __refs.__funcs.__parry()
-                __refs.__props.__parried = true
-            end
-
-            local __last_parrys = tick()
-
-            repeat
-                __runservice.Stepped:Wait()
-            until (tick() - __last_parrys) >= 1 or not __refs.__props.__parried
-
-            System.__properties.__parried = false
-        end
-    end)
-end
-
-
+-- // library
 local __fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 
 local __window = __fluent:CreateWindow({
@@ -579,58 +507,230 @@ local __window = __fluent:CreateWindow({
     UserInfo = false,
 })
 
-local __main = __window:AddTab({Title = 'Main', Icon = 'sword'})
-
-local __drop = __main:AddDropdown("Dropdown", {
-    Title = "curves",
-    Values = {'Camera', 'Random', 'Accelerated', 'Backwards', 'Slow', 'High'},
-    Multi = false,
-    Search = false,
-    Default = 1,
-    Callback = function(__val)
-        __refs.__props.__curve_mode = __val
-    end
+__library:CreateMinimizer({
+  Icon = 'sword',
+  Size = UDim2.fromOffset(44, 44),
+  Position = UDim2.fromOffset(15, 0),
+  Acrylic = true,
+  Corner = 10,
+  Transparency = 1,
+  Draggable = true,
+  Visible = true
 })
 
-local CURVE_TYPES = {
-    {key = Enum.KeyCode.One, name = "Camera"},
-    {key = Enum.KeyCode.Two, name = "Random"},
-    {key = Enum.KeyCode.Three, name = "Accelerated"},
-    {key = Enum.KeyCode.Four, name = "Backwards"},
-    {key = Enum.KeyCode.Five, name = "Slow"},
-    {key = Enum.KeyCode.Six, name = "High"}
-}
+do
+    local __main = __window:AddTab({Title = 'Main', Icon = 'sword'})
 
-__inputservice.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end
+    local __drop = __main:AddDropdown("Dropdown", {
+        Title = "curves",
+        Values = {'Camera', 'Random', 'Accelerated', 'Backwards', 'Slow', 'High'},
+        Description = 'escolhe a porra'
+        Multi = false,
+        Search = false,
+        Default = 1,
+        Callback = function(__val)
+            __refs.__cache.__mode = __val
+        end
+    })
 
-    for _, curveType in ipairs(CURVE_TYPES) do
-        if input.KeyCode == curveType.key then
-            __drop:SetValue(curveType.name)
-            break
+    local __curves = {
+        {key = Enum.KeyCode.One, name = "Camera"},
+        {key = Enum.KeyCode.Two, name = "Random"},
+        {key = Enum.KeyCode.Three, name = "Accelerated"},
+        {key = Enum.KeyCode.Four, name = "Backwards"},
+        {key = Enum.KeyCode.Five, name = "Slow"},
+        {key = Enum.KeyCode.Six, name = "High"}
+    }
+
+    __inputservice.InputBegan:Connect(function(__input, __event)
+        if __event then
+            return
+        end
+
+        for _, __curve in __curves do
+            if __input.KeyCode == __curve.key then
+                __drop:SetValue(__curve.name)
+                break
+            end
+        end
+    end)
+
+    __main:AddSlider("Slider", {
+        Title = "accuracy",
+        Description = "só muda a porra",
+        Default = 1,
+        Min = 1,
+        Max = 200,
+        Rounding = 1,
+        Callback = function(__val)
+            __refs.__cache.__accuracy = 0.75 + (tonumber(__val) - 1) * (3 / 99)
+        end
+    })
+
+    __main:AddToggle('', {
+        Title = 'Ap',
+        Default = false,
+        Callback = function(__val)
+            __refs.__cache.__auto_spam_enabled = __val
+        end
+    })
+end
+
+RunService.PreSimulation:Connect(function()
+    if not __refs.__cache.__autoparry.__enabled or not __localplayer.Character or not __localplayer.Character.PrimaryPart then
+        return
+    end
+
+    local __balls = __refs.__funcs.__get_balls()
+    local __ball = __refs.__funcs.__get_ball()
+
+    local __train_ball
+
+    for _, __obj in workspace.TrainingBalls:GetChildren() do
+        if __obj:GetAttribute("realBall") then
+            __train_ball = __obj break
         end
     end
-end)
 
-__main:AddSlider("Slider", {
-    Title = "accuracy",
-    Description = "só muda a porra",
-    Default = 1,
-    Min = 1,
-    Max = 200,
-    Rounding = 1,
-    Callback = function(__val)
-        __refs.__props.__accuracy = 0.75 + (tonumber(__val) - 1) * (3 / 99)
-    end
-})
+    for _, __obj in __balls do
+        if __refs.__cache.__triggerbot.__enabled or __refs.__cache.__dupe_ball then
+            return
+        end
 
-__main:AddToggle('', {
-    Title = 'Ap',
-    Default = false,
-    Callback = function(__val)
-        __refs.__props.__auto_spam_enabled = __val
-    end
-})
+        if not ball then
+            continue
+        end
+
+        local zoomies = ball:FindFirstChild('zoomies')
+            if not zoomies then continue end
+            
+            ball:GetAttributeChangedSignal('target'):Once(function()
+                System.__properties.__parried = false
+            end)
+            
+            if System.__properties.__parried then continue end
+            
+            local ball_target = ball:GetAttribute('target')
+            local velocity = zoomies.VectorVelocity
+            local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+            
+            local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
+            local ping_threshold = math.clamp(ping / 10, 5, 17)
+            local speed = velocity.Magnitude
+            
+            local capped_speed_diff = math.min(math.max(speed - 9.5, 0), 650)
+            local speed_divisor = (2.4 + capped_speed_diff * 0.002) * System.__properties.__divisor_multiplier
+            local parry_accuracy = ping_threshold + math.max(speed / speed_divisor, 9.5)
+            
+            local curved = System.detection.is_curved()
+            
+            if ball:FindFirstChild('AeroDynamicSlashVFX') then
+                ball.AeroDynamicSlashVFX:Destroy()
+                System.__properties.__tornado_time = tick()
+            end
+            
+            if Runtime:FindFirstChild('Tornado') then
+                if (tick() - System.__properties.__tornado_time) < 
+                   (Runtime.Tornado:GetAttribute('TornadoTime') or 1) + 0.314159 then
+                    continue
+                end
+            end
+            
+            if one_ball and one_ball:GetAttribute('target') == LocalPlayer.Name and curved then
+                continue
+            end
+            
+            if ball:FindFirstChild('ComboCounter') then continue end
+            
+            if LocalPlayer.Character.PrimaryPart:FindFirstChild('SingularityCape') then continue end
+            
+            if System.__config.__detections.__infinity and System.__properties.__infinity_active then continue end
+            if System.__config.__detections.__deathslash and System.__properties.__deathslash_active then continue end
+            if System.__config.__detections.__timehole and System.__properties.__timehole_active then continue end
+            if System.__config.__detections.__slashesoffury and System.__properties.__slashesoffury_active then continue end
+            
+            if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                if getgenv().CooldownProtection then
+                    local ParryCD = LocalPlayer.PlayerGui.Hotbar.Block.UIGradient
+                    if ParryCD.Offset.Y < 0.4 then
+                        ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+                        continue
+                    end
+                end
+                
+                if getgenv().AutoAbility then
+                    local AbilityCD = LocalPlayer.PlayerGui.Hotbar.Ability.UIGradient
+                    if AbilityCD.Offset.Y == 0.5 then
+                        if LocalPlayer.Character.Abilities:FindFirstChild("Raging Deflection") and LocalPlayer.Character.Abilities["Raging Deflection"].Enabled or
+                           LocalPlayer.Character.Abilities:FindFirstChild("Rapture") and LocalPlayer.Character.Abilities["Rapture"].Enabled or
+                           LocalPlayer.Character.Abilities:FindFirstChild("Calming Deflection") and LocalPlayer.Character.Abilities["Calming Deflection"].Enabled or
+                           LocalPlayer.Character.Abilities:FindFirstChild("Aerodynamic Slash") and LocalPlayer.Character.Abilities["Aerodynamic Slash"].Enabled or
+                           LocalPlayer.Character.Abilities:FindFirstChild("Fracture") and LocalPlayer.Character.Abilities["Fracture"].Enabled or
+                           LocalPlayer.Character.Abilities:FindFirstChild("Death Slash") and LocalPlayer.Character.Abilities["Death Slash"].Enabled then
+                            System.__properties.__parried = true
+                            ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+                            task.wait(2.432)
+                            ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
+                            continue
+                        end
+                    end
+                end
+            end
+            
+            if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                if getgenv().AutoParryMode == "Keypress" then
+                    System.parry.keypress()
+                else
+                    System.parry.execute_action()
+                end
+                System.__properties.__parried = true
+            end
+            
+            local last_parrys = tick()
+            repeat
+                RunService.Stepped:Wait()
+            until (tick() - last_parrys) >= 1 or not System.__properties.__parried
+            System.__properties.__parried = false
+        end
+
+        if training_ball then
+            local zoomies = training_ball:FindFirstChild('zoomies')
+            if zoomies then
+                training_ball:GetAttributeChangedSignal('target'):Once(function()
+                    System.__properties.__training_parried = false
+                end)
+                
+                if not System.__properties.__training_parried then
+                    local ball_target = training_ball:GetAttribute('target')
+                    local velocity = zoomies.VectorVelocity
+                    local distance = LocalPlayer:DistanceFromCharacter(training_ball.Position)
+                    local speed = velocity.Magnitude
+                    
+                    local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
+                    local ping_threshold = math.clamp(ping / 10, 5, 17)
+                    
+                    local capped_speed_diff = math.min(math.max(speed - 9.5, 0), 650)
+                    local speed_divisor = (2.4 + capped_speed_diff * 0.002) * System.__properties.__divisor_multiplier
+                    local parry_accuracy = ping_threshold + math.max(speed / speed_divisor, 9.5)
+                    
+                    if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                        if getgenv().AutoParryMode == "Keypress" then
+                            System.parry.keypress()
+                        else
+                            System.parry.execute_action()
+                        end
+                        System.__properties.__training_parried = true
+                        
+                        local last_parrys = tick()
+                        repeat
+                            RunService.Stepped:Wait()
+                        until (tick() - last_parrys) >= 1 or not System.__properties.__training_parried
+                        System.__properties.__training_parried = false
+                    end
+                end
+            end
+        end
+    end)
 
 ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, root)
     if root.Parent and root.Parent ~= LocalPlayer.Character then

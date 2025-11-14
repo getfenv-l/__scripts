@@ -1,0 +1,6 @@
+{
+    "krnlLsp.diagnostics.globals": [
+        "cloneref",
+        "__setref"
+    ]
+}
