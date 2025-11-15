@@ -33,7 +33,7 @@ local __is_mobile = table.find({
 -- // refs
 local __refs = {
     __cache = {
-        __auto_parry = {
+        __autoparry = {
             __enabled = false,
             __animfix = false,
             __protect = false,
@@ -672,11 +672,11 @@ __runservice.PreSimulation:Connect(function()
         if __refs.__detection.__slashesoffury and __refs.__cache.__slashesoffury then continue end
 
         if __target == __localplayer.Name and __distance <= __accuracy then
-            if __refs.__cache.__auto_parry.__protect then
+            if __refs.__cache.__autoparry.__protect then
                 if __playergui.Hotbar.Block.UIGradient.Offset.Y < 0.4 then
                     __replicatedstorage.Remotes.AbilityButtonPress:Fire() continue
                 end
-            elseif __refs.__cache.__auto_parry.__auto_ab and __playergui.Hotbar.Ability.UIGradient.Offset.Y == 0.5 and table.find(__refs.__abilitys, __localplayer:GetAttribute('EquippedAbility')) then
+            elseif __refs.__cache.__autoparry.__auto_ab and __playergui.Hotbar.Ability.UIGradient.Offset.Y == 0.5 and table.find(__refs.__abilitys, __localplayer:GetAttribute('EquippedAbility')) then
                 __refs.__cache.__parried = true
                 __replicatedstorage.Remotes.AbilityButtonPress:Fire()
                 task.wait(2.432)
