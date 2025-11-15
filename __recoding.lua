@@ -21,7 +21,6 @@ local __inputservice = __setref.UserInputService
 local __replicatedstorage = __setref.ReplicatedStorage
 
 local __localplayer = __players.LocalPlayer
-local __mouse = __localplayer:GetMouse()
 
 local __playergui = __localplayer:WaitForChild('PlayerGui', 5)
 local __camera = workspace.CurrentCamera
@@ -363,7 +362,7 @@ end
 
 
 function __refs.__funcs.__remote()
-    local __location = __mouse:GetMouseLocation()
+    local __location = __inputservice:GetMouseLocation()
     local __curve = __refs.__funcs.__get_curve()
 
     local __points = {}
