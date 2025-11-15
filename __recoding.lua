@@ -487,7 +487,7 @@ function __refs.__detection.__is_curved()
     local __clamped_dot = math.clamp(__dot, -1, 1)
     local __radians = math.rad(math.asin(__clamped_dot))
 
-    __ball_props.__lerp_radians = __refs.__detection.__linear_predict(__ball_props.__lerp_radians, __radians, 0.8)
+    __ball_props.__lerp_radians = __refs.__detection.__predict(__ball_props.__lerp_radians, __radians, 0.8)
 
     if __speed > 0 and __reach_time > __ping / 10 then
         __ball_distance_threshold = math.max(__ball_distance_threshold - 15, 15)
@@ -776,6 +776,6 @@ __replicatedstorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, __
     end
 
     if __obj ~= __root and __distance > __threshold then
-        __refs.detection.__ball_props.__curving = tick()
+        __refs.__detection.__ball_props.__curving = tick()
     end
 end)
