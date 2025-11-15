@@ -596,7 +596,7 @@ do
         Title = 'Ap',
         Default = false,
         Callback = function(__val)
-            __refs.__cache.__auto_spam_enabled = __val
+            __refs.__cache.__autoparry.__enabled = __val
         end
     })
 end
