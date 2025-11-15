@@ -117,7 +117,8 @@ local __pf, __sc
 if __replicatedstorage:FindFirstChild('Controllers') then
     for _, __obj in __replicatedstorage.Controllers:GetChildren() do
         if __obj.Name == 'SwordsController' then
-            __sc = __obj break
+            __sc = __obj
+            break
         end
     end
 end
@@ -125,7 +126,8 @@ end
 if __playergui:FindFirstChild('Hotbar') and __playergui.Hotbar:FindFirstChild('Block') then
     for _, __conn in next, getconnections(__playergui.Hotbar.Block.Activated) do
         if __sc and getfenv(__conn.Function).script == __sc then
-            __pf = __conn.Function break
+            __pf = __conn.Function
+            break
         end
     end
 end
@@ -683,7 +685,7 @@ __runservice.PreSimulation:Connect(function()
                 continue
             end
 
-            if __refs.__cache.__mode:lower() == 'remote' then
+            if __refs.__cache.__mode:lower() == 'remote' and __refs.__cache.__first_parry then
                 __refs.__funcs.__parry()
             else
                 __refs.__funcs.__keypress()
