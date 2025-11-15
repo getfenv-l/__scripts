@@ -524,8 +524,8 @@ local __window = __library:CreateWindow({
     SubTitle = "by Beto",
     Search = true,
     Icon = 'sword',
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
+    TabWidth = __is_mobile and 130 or 160,
+    Size = __is_mobile and UDim2.fromOffset(480, 350) or UDim2.fromOffset(580, 460),
     Acrylic = true,
     Theme = "Grape",
     MinimizeKey = Enum.KeyCode.LeftControl,
@@ -734,7 +734,7 @@ __replicatedstorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, __
 end)
 
 
-__localplayer.Remotes.ParrySuccess.OnClientEvent:Connect(function()
+__replicatedstorage.Remotes.ParrySuccess.OnClientEvent:Connect(function()
     if __localplayer.Character.Parent == workspace.Dead then
         return
     end
