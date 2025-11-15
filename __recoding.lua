@@ -36,6 +36,8 @@ local __refs = {
         __auto_parry = {
             __enabled = false,
             __animfix = false,
+            __protect = false,
+            __auto_ab = false,
             __accuracy = 1,
         },
         __auto_spam = {
@@ -94,6 +96,14 @@ local __refs = {
             __lerp_radians = 0,
             __curving = tick()
         }
+    },
+    __abilitys = {
+        'Raging Deflection',
+        'Rapture',
+        'Calming Deflection',
+        'Aerodynamic Slash',
+        'Fracture',
+        'Death Slash'
     },
     __funcs = {},
     __flags = {},
@@ -647,39 +657,25 @@ __runservice.PreSimulation:Connect(function()
             continue
         end
 
-            if System.__config.__detections.__infinity and System.__properties.__infinity_active then continue end
-            if System.__config.__detections.__deathslash and System.__properties.__deathslash_active then continue end
-            if System.__config.__detections.__timehole and System.__properties.__timehole_active then continue end
-            if System.__config.__detections.__slashesoffury and System.__properties.__slashesoffury_active then continue end
-            
-            if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
-                if getgenv().CooldownProtection then
-                    local ParryCD = LocalPlayer.PlayerGui.Hotbar.Block.UIGradient
-                    if ParryCD.Offset.Y < 0.4 then
-                        ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
-                        continue
+            if __refs.__detection.__infinity and __refs.__cache.__infinity then continue end
+            if __refs.__detection.__deathslash and __refs.__cache.__deathslash then continue end
+            if __refs.__detection.__timehole and __refs.__detection.__timehole then continue end
+            if __refs.__detection.__slashesoffury and __refs.__cache.__slashesoffury then continue end
+
+            if __target == __localplayer.Name and __distance <= __accuracy then
+                if __refs.__cache.__auto_parry.__protect then
+                    if __playergui.Hotbar.Block.UIGradient.Offset.Y < 0.4 then
+                        __replicatedstorage.Remotes.AbilityButtonPress:Fire() continue
                     end
-                end
-                
-                if getgenv().AutoAbility then
-                    local AbilityCD = LocalPlayer.PlayerGui.Hotbar.Ability.UIGradient
-                    if AbilityCD.Offset.Y == 0.5 then
-                        if LocalPlayer.Character.Abilities:FindFirstChild("Raging Deflection") and LocalPlayer.Character.Abilities["Raging Deflection"].Enabled or
-                           LocalPlayer.Character.Abilities:FindFirstChild("Rapture") and LocalPlayer.Character.Abilities["Rapture"].Enabled or
-                           LocalPlayer.Character.Abilities:FindFirstChild("Calming Deflection") and LocalPlayer.Character.Abilities["Calming Deflection"].Enabled or
-                           LocalPlayer.Character.Abilities:FindFirstChild("Aerodynamic Slash") and LocalPlayer.Character.Abilities["Aerodynamic Slash"].Enabled or
-                           LocalPlayer.Character.Abilities:FindFirstChild("Fracture") and LocalPlayer.Character.Abilities["Fracture"].Enabled or
-                           LocalPlayer.Character.Abilities:FindFirstChild("Death Slash") and LocalPlayer.Character.Abilities["Death Slash"].Enabled then
-                            System.__properties.__parried = true
-                            ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
-                            task.wait(2.432)
-                            ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
-                            continue
-                        end
-                    end
+                elseif __refs.__cache.__auto_parry.__auto_ab and __playergui.Hotbar.Block.UIGradient.Offset.Y == 0.5 and table.find(__refs.__abilitys, __localplayer:GetAttribute('EquippedAbility')) then
+                    __refs.__cache.__parried = true
+                    __replicatedstorage.Remotes.AbilityButtonPress:Fire()
+                    task.wait(2.432)
+                    __replicatedstorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
+                    continue
                 end
             end
-            
+
             if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
                 if getgenv().AutoParryMode == "Keypress" then
                     System.parry.keypress()
