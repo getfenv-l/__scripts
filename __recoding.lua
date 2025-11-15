@@ -76,9 +76,10 @@ local __refs = {
         __slashesoffury_count = 0,
 
         __parries = 0,
-        __mode = 'Camera',
+        __mode = 'Remote',
         __parried = false,
         __grab_anim = nil,
+        __curve = 'Camera',
         __first_parry = false,
         __training_parried = false,
     },
@@ -235,17 +236,6 @@ function __refs.__funcs.__play_anim()
 end
 
 -- // Get Balls
-function __refs.__funcs.__get_ball()
-    for _, __ball in workspace.Balls:GetChildren() do
-        if __ball:GetAttribute('realBall') then
-            __ball.CanCollide = false
-            return __ball
-        end
-    end
-
-    return nil
-end
-
 function __refs.__funcs.__get_balls()
     local __balls = {}
 
@@ -257,6 +247,27 @@ function __refs.__funcs.__get_balls()
     end
 
     return __balls
+end
+
+function __refs.__funcs.__get_ball()
+    for _, __ball in workspace.Balls:GetChildren() do
+        if __ball:GetAttribute('realBall') then
+            __ball.CanCollide = false
+            return __ball
+        end
+    end
+
+    return nil
+end
+
+function __refs.__funcs.__get_train_ball()
+    for _, __obj in workspace.TrainingBalls:GetChildren() do
+        if __obj:GetAttribute("realBall") then
+            return __obj
+        end
+    end
+
+    return nil
 end
 
 
@@ -351,7 +362,7 @@ function __refs.__funcs.__get_curve()
 end
 
 
-function __refs.__funcs.__parry()
+function __refs.__funcs.__remote()
     local __location = __mouse:GetMouseLocation()
     local __curve = __refs.__funcs.__get_curve()
 
@@ -405,6 +416,11 @@ function __refs.__funcs.__parry()
             __refs.__cache.__parries -= 1
         end
     end)
+end
+
+function __refs.__funcs.__parry()
+    __refs.__funcs.__play_anim()
+    __refs.__funcs.__remote()
 end
 
 function __refs.__funcs.__keypress()
@@ -592,14 +608,7 @@ __runservice.PreSimulation:Connect(function()
 
     local __balls = __refs.__funcs.__get_balls()
     local __ball = __refs.__funcs.__get_ball()
-
-    local __train_ball
-
-    for _, __obj in workspace.TrainingBalls:GetChildren() do
-        if __obj:GetAttribute("realBall") then
-            __train_ball = __obj break
-        end
-    end
+    local __train_ball = __refs.__funcs.__get_train_ball()
 
     for _, __obj in __balls do
         if __refs.__cache.__triggerbot.__enabled or __refs.__cache.__dupe_ball then
@@ -636,7 +645,7 @@ __runservice.PreSimulation:Connect(function()
         local __speed_divisor = (2.4 + __speed_diff * 0.002) * __refs.__cache.__accuracy
         local __accuracy = __threshold + math.max(__speed / __speed_divisor, 9.5)
 
-        local __is_curved = __refs.__funcs.__is_curved()
+        local __is_curved = __refs.__detection.__is_curved()
 
         if __obj:FindFirstChild('AeroDynamicSlashVFX') then
             __obj.AeroDynamicSlashVFX:Destroy()
@@ -657,157 +666,116 @@ __runservice.PreSimulation:Connect(function()
             continue
         end
 
-            if __refs.__detection.__infinity and __refs.__cache.__infinity then continue end
-            if __refs.__detection.__deathslash and __refs.__cache.__deathslash then continue end
-            if __refs.__detection.__timehole and __refs.__detection.__timehole then continue end
-            if __refs.__detection.__slashesoffury and __refs.__cache.__slashesoffury then continue end
+        if __refs.__detection.__infinity and __refs.__cache.__infinity then continue end
+        if __refs.__detection.__deathslash and __refs.__cache.__deathslash then continue end
+        if __refs.__detection.__timehole and __refs.__detection.__timehole then continue end
+        if __refs.__detection.__slashesoffury and __refs.__cache.__slashesoffury then continue end
 
-            if __target == __localplayer.Name and __distance <= __accuracy then
-                if __refs.__cache.__auto_parry.__protect then
-                    if __playergui.Hotbar.Block.UIGradient.Offset.Y < 0.4 then
-                        __replicatedstorage.Remotes.AbilityButtonPress:Fire() continue
-                    end
-                elseif __refs.__cache.__auto_parry.__auto_ab and __playergui.Hotbar.Block.UIGradient.Offset.Y == 0.5 and table.find(__refs.__abilitys, __localplayer:GetAttribute('EquippedAbility')) then
-                    __refs.__cache.__parried = true
-                    __replicatedstorage.Remotes.AbilityButtonPress:Fire()
-                    task.wait(2.432)
-                    __replicatedstorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
-                    continue
+        if __target == __localplayer.Name and __distance <= __accuracy then
+            if __refs.__cache.__auto_parry.__protect then
+                if __playergui.Hotbar.Block.UIGradient.Offset.Y < 0.4 then
+                    __replicatedstorage.Remotes.AbilityButtonPress:Fire() continue
                 end
+            elseif __refs.__cache.__auto_parry.__auto_ab and __playergui.Hotbar.Ability.UIGradient.Offset.Y == 0.5 and table.find(__refs.__abilitys, __localplayer:GetAttribute('EquippedAbility')) then
+                __refs.__cache.__parried = true
+                __replicatedstorage.Remotes.AbilityButtonPress:Fire()
+                task.wait(2.432)
+                __replicatedstorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
+                continue
             end
 
-            if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
-                if getgenv().AutoParryMode == "Keypress" then
-                    System.parry.keypress()
-                else
-                    System.parry.execute_action()
-                end
-                System.__properties.__parried = true
+            if __refs.__cache.__mode:lower() == 'remote' then
+                __refs.__funcs.__parry()
+            else
+                __refs.__funcs.__keypress()
             end
-            
-            local last_parrys = tick()
-            repeat
-                RunService.Stepped:Wait()
-            until (tick() - last_parrys) >= 1 or not System.__properties.__parried
-            System.__properties.__parried = false
+            __refs.__cache.__parried = true
         end
 
-        if training_ball then
-            local zoomies = training_ball:FindFirstChild('zoomies')
-            if zoomies then
-                training_ball:GetAttributeChangedSignal('target'):Once(function()
-                    System.__properties.__training_parried = false
-                end)
-                
-                if not System.__properties.__training_parried then
-                    local ball_target = training_ball:GetAttribute('target')
-                    local velocity = zoomies.VectorVelocity
-                    local distance = LocalPlayer:DistanceFromCharacter(training_ball.Position)
-                    local speed = velocity.Magnitude
-                    
-                    local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
-                    local ping_threshold = math.clamp(ping / 10, 5, 17)
-                    
-                    local capped_speed_diff = math.min(math.max(speed - 9.5, 0), 650)
-                    local speed_divisor = (2.4 + capped_speed_diff * 0.002) * System.__properties.__divisor_multiplier
-                    local parry_accuracy = ping_threshold + math.max(speed / speed_divisor, 9.5)
-                    
-                    if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
-                        if getgenv().AutoParryMode == "Keypress" then
-                            System.parry.keypress()
-                        else
-                            System.parry.execute_action()
-                        end
-                        System.__properties.__training_parried = true
-                        
-                        local last_parrys = tick()
-                        repeat
-                            RunService.Stepped:Wait()
-                        until (tick() - last_parrys) >= 1 or not System.__properties.__training_parried
-                        System.__properties.__training_parried = false
-                    end
-                end
-            end
-        end
-    end)
+        local __last = tick()
 
-ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, root)
-    if root.Parent and root.Parent ~= LocalPlayer.Character then
-        if not Alive or root.Parent.Parent ~= Alive then
+        repeat
+            __runservice.Stepped:Wait()
+        until (tick() - __last) >= 1 or not __refs.__cache.__parried
+            __refs.__cache.__parried = false
+    end
+end)
+
+__replicatedstorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, __root)
+    if __root and __root.Parent ~= __localplayer.Character then
+        if __root.Parent.Parent ~= workspace.Alive then
             return
         end
     end
-    
-    local closest = System.player.get_closest()
-    local ball = System.ball.get()
-    
-    if not ball or not closest then return end
-    
-    local target_distance = (LocalPlayer.Character.PrimaryPart.Position - closest.PrimaryPart.Position).Magnitude
-    local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
-    local direction = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Unit
-    local dot = direction:Dot(ball.AssemblyLinearVelocity.Unit)
-    
-    local curve_detected = System.detection.is_curved()
-    
-    if target_distance < 15 and distance < 15 and dot > -0.25 then
-        if curve_detected then
-            System.parry.execute_action()
+
+    local __closest = __refs.__funcs.__closest()
+    local __ball = __refs.__funcs.__get_ball()
+
+    if not __ball or not __closest then
+        return
+    end
+
+    local __dist = (__localplayer.Character.PrimaryPart.Position - __closest.PrimaryPart.Position).Magnitude
+    local __distance = (__localplayer.Character.PrimaryPart.Position - __ball.Position).Magnitude
+    local __direction = (__localplayer.Character.PrimaryPart.Position - __ball.Position).Unit
+    local __dot = __direction:Dot(__ball.AssemblyLinearVelocity.Unit)
+
+    local __is_curved = __refs.__detection.__is_curved()
+
+    if __dist < 15 and __distance < 15 and __dot > -0.25 then
+        if __is_curved then
+            __refs.__funcs.__parry()
         end
     end
-    
-    if System.__properties.__grab_animation then
-        System.__properties.__grab_animation:Stop()
+
+    if __refs.__cache.__grab_anim then
+        __refs.__cache.__grab_anim:Stop()
     end
 end)
 
-ReplicatedStorage.Remotes.ParrySuccess.OnClientEvent:Connect(function()
-    if not Alive or LocalPlayer.Character.Parent ~= Alive then
+
+__localplayer.Remotes.ParrySuccess.OnClientEvent:Connect(function()
+    if __localplayer.Character.Parent == workspace.Dead then
         return
     end
-    
-    if System.__properties.__grab_animation then
-        System.__properties.__grab_animation:Stop()
+
+    if __refs.__cache.__grab_anim then
+        __refs.__cache.__grab_anim:Stop()
     end
 end)
 
-ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(a, b)
-    local Primary_Part = LocalPlayer.Character.PrimaryPart
-    local Ball = System.ball.get()
 
-    if not Ball then
+__replicatedstorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, __obj)
+    local __root = __localplayer.Character.PrimaryPart
+    local __ball = __refs.__funcs.__get_ball()
+
+    if not __ball then
         return
     end
 
-    local Zoomies = Ball:FindFirstChild('zoomies')
+    local __zoomies = __ball:FindFirstChild('zoomies')
 
-    if not Zoomies then
+    if not __zoomies then
         return
     end
 
-    local Speed = Zoomies.VectorVelocity.Magnitude
+    local __speed = __zoomies.VectorVelocity.Magnitude
 
-    local Distance = (LocalPlayer.Character.PrimaryPart.Position - Ball.Position).Magnitude
-    local Velocity = Zoomies.VectorVelocity
+    local __distance = (__root.Position - __ball.Position).Magnitude
 
-    local Ball_Direction = Velocity.Unit
+    local __ping = __stats.Network.ServerStatsItem['Data Ping']:GetValue()
 
-    local Direction = (LocalPlayer.Character.PrimaryPart.Position - Ball.Position).Unit
-    local Dot = Direction:Dot(Ball_Direction)
+    local __speed_threshold = math.min(__speed / 100, 40)
+    local __time = __distance / __speed - (__ping / 1000)
 
-    local Pings = Stats.Network.ServerStatsItem['Data Ping']:GetValue()
+    local __enough = __speed > 1
+    local __threshold = 15 - math.min(__distance / 1000, 15) + __speed_threshold
 
-    local Speed_Threshold = math.min(Speed / 100, 40)
-    local Reach_Time = Distance / Speed - (Pings / 1000)
-
-    local Enough_Speed = Speed > 1
-    local Ball_Distance_Threshold = 15 - math.min(Distance / 1000, 15) + Speed_Threshold
-
-    if Enough_Speed and Reach_Time > Pings / 10 then
-        Ball_Distance_Threshold = math.max(Ball_Distance_Threshold - 15, 15)
+    if __enough and __time > __ping / 10 then
+        __threshold = math.max(__threshold - 15, 15)
     end
 
-    if b ~= Primary_Part and Distance > Ball_Distance_Threshold then
-        System.detection.__ball_properties.__curving = tick()
+    if __obj ~= __root and __distance > __threshold then
+        __refs.detection.__ball_props.__curving = tick()
     end
 end)
